@@ -1,0 +1,8 @@
+# Emacs's junk.
+\#*\#
+.\#*
+*~
+
+# Random cache files.
+.import/
+*.import

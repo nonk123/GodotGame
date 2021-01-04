@@ -1,0 +1,4 @@
+* Addons
+
+Install Zylann's heightmap terrain locally. It is not included in the
+repository to prevent pollution.

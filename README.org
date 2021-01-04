@@ -1,0 +1,5 @@
+* GodotGame
+
+An unnamed game of questionable quality.
+
+Refer to [[./addons/README.org]] for info on how to make this project work.
