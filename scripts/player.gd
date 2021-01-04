@@ -1,16 +1,19 @@
 extends KinematicBody
 
-# Gravity applied to the player, in m * s^(-2).
-export var gravity = -20.0;
+# Gravity applied to the player, in m * s^(-2). An absolute value.
+export var gravity = 30.0;
 
-# Character movement speed in m/s.
-export var movement_speed = 10;
+# A character accelerates by this much when he starts walking. In m * s^(-2).
+export var acceleration = 150;
 
-# Movement speed while sprinting, in m/s.
-export var sprint_speed = 20;
+# A character cannot walk faster than this value. m/s.
+export var max_walking_speed = 20;
 
 # Apply this much velocity when jumping. m/s.
 export var jump_power = 20;
+
+# Friction coefficent applied to ground movement.
+export var ground_friction = 0.7;
 
 # Hook rope cannot get shorter than this.
 export var min_hook_length = 0.5;
@@ -19,10 +22,10 @@ export var min_hook_length = 0.5;
 export var max_hook_length = 50;
 
 # Apply this much force when hanging from the grappling hook. m * s^(-2).
-export var hook_dampening_factor = 200;
+export var hook_dampening_factor = 150;
 
 # Adjust the hook length by this many meters for each second scrolled.
-export var hook_length_adjust_factor = 50;
+export var hook_length_adjust_factor = 80;
 
 # Multiplied by relative mouse coordinates.
 export var mouse_sensitivity = 0.01;
@@ -69,40 +72,57 @@ func _physics_process(delta):
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE);
 	
 	# In m * s^(-1) by default, so we multiply by delta again.
-	velocity.y += gravity * delta;
+	velocity.y -= gravity * delta;
 	
+	# Can jump from the floor or the walls.
 	var has_support = is_on_floor() or is_on_wall();
 	
 	if has_support and Input.is_action_just_pressed("jump"):
-		velocity.y = jump_power;
+		velocity.y += jump_power;
 	
 	# X = left/right, Y = forward/backward.
 	var movement = Vector2();
 	
 	if Input.is_action_pressed("move_left"):
-		movement.x -= movement_speed;
+		movement.x -= acceleration;
 	
 	if Input.is_action_pressed("move_right"):
-		movement.x += movement_speed;
+		movement.x += acceleration;
 	
 	if Input.is_action_pressed("move_forward"):
-		movement.y += movement_speed;
+		movement.y += acceleration;
 	
 	if Input.is_action_pressed("move_backward"):
-		movement.y -= movement_speed;
+		movement.y -= acceleration;
 	
-	if Input.is_action_pressed("sprint"):
-		movement *= sprint_speed / movement_speed;
+	# Convert to m * s^(-2).
+	movement *= delta;
 	
-	# The (X; Y) vector is relative to the body's XZ plane.
-	# Here we turn it by -theta to align.
-	# Also, its Y (the body's Z) is backwards. Account for that, too.
+	# Ground speed, basically. Converted to 2D for easier manipulation.
+	var xz_velocity = Vector2(velocity.x, velocity.z);
 	
-	var theta = rotation.y;
+	# TODO: implement walking backwards to add more friction.
+	if is_on_floor():
+		if xz_velocity.length() <= max_walking_speed:
+			# The formula below rotates the movement vector (the body's XZ, with
+			# the Z axis pointing forwards from it) to line up with the global
+			# coordinates.
+			#
+			# We are rotating by -theta, for which the formula is adjusted.
+			
+			var theta = rotation.y;
+			
+			# Apply acceleration if we can walk that fast.
+			xz_velocity.x += cos(theta) * movement.x - sin(theta) * movement.y;
+			xz_velocity.y -= cos(theta) * movement.y + sin(theta) * movement.x;
+		
+		# Apply friction. Assuming normal force is the opposite of gravity.
+		var friction_force = ground_friction * gravity * delta;
+		xz_velocity -= friction_force * xz_velocity.normalized();
 	
-	# The vector rotation formula has been adjusted.
-	velocity.x = cos(theta) * movement.x - sin(theta) * movement.y;
-	velocity.z = -cos(theta) * movement.y - sin(theta) * movement.x;
+	# Apply the values from 2D modifications.
+	velocity.x = xz_velocity.x;
+	velocity.z = xz_velocity.y;
 	
 	# Don't forget the hook's force. In m * s^(-2).
 	velocity += hook_dampening * delta;
@@ -151,7 +171,7 @@ func cast_ray(length):
 
 
 func grapple():
-	var hook_node = $GrapplingHook;
+	var hook_node = get_node_or_null("GrapplingHook");
 	
 	# Prevent weird hook behaviour when the mouse is captured.
 	var panning = Input.is_action_pressed("pan_camera");
@@ -161,13 +181,13 @@ func grapple():
 	
 	if not panning and Input.is_action_pressed("attach_hook"):
 		if hook_node:
-			if hook_node.length > hook_length:
-				# Dampen toward the hook's end.
+			if hook_node.get_length() > hook_length:
+				# Dampen towards the hook's end.
 				var direction = (hook_node.end - hook_node.start).normalized();
 				hook_dampening = direction * hook_dampening_factor;
 				
 				# Scale according to the stretching factor.
-				hook_dampening *= hook_node.length / hook_length;
+				hook_dampening *= hook_node.get_length() / hook_length;
 		else:
 			# Create a new grappling hook if it doesn't exist.
 			var hook_target = cast_ray(max_hook_length);
@@ -183,6 +203,6 @@ func grapple():
 			add_child(hook_node);
 			
 			# Default to current hook length.
-			hook_length = hook_node.length;
+			hook_length = hook_node.get_length();
 	elif hook_node:
 		remove_child(hook_node);

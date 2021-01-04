@@ -1,7 +1,7 @@
-extends Generic6DOFJoint
+extends Spatial
 
 # Rope's end point, in absolute coordinates.
-var end = Vector3();
+var end;
 
 # Rope's start, in absolute coordinates.
 # Currently attached to the parent node.
@@ -10,16 +10,13 @@ var start setget ,get_start;
 # Material to draw the rope with.
 var material;
 
-# Hook rope's length.
-var length setget ,get_length;
-
 
 func _ready():
 	material = SpatialMaterial.new();
 	material.albedo_color = Color(0.0, 0.0, 0.0, 1.0);
 
 
-func _process(delta):
+func _process(_delta):
 	var rope = $Rope;
 	
 	rope.material_override = material;
