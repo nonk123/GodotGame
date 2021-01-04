@@ -6,3 +6,6 @@
 # Random cache files.
 .import/
 *.import
+
+# Not sure if these should be removed.
+*.packed_tex
