@@ -1,4 +1,4 @@
 * Addons
 
-Install Zylann's heightmap terrain locally. It is not included in the
+Install [[https://godotengine.org/asset-library/asset/231][Zylann's Heightmap terrain]] locally. It is not included in the
 repository to prevent pollution.

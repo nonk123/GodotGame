@@ -1,19 +1,29 @@
 extends KinematicBody
 
-# Gravity applied to the player, in m * s^(-2). An absolute value.
+# Gravity applied to the player, in m * s^(-2).
 export var gravity = 30.0;
 
+# Gravity applied to the player when using the gas canister. m * s^(-2).
+export var gas_canister_gravity = 12.0;
+
 # A character accelerates by this much when he starts walking. In m * s^(-2).
-export var acceleration = 150;
+export var walking_acceleration = 150.0;
 
 # A character cannot walk faster than this value. m/s.
-export var max_walking_speed = 20;
+export var max_walking_speed = 20.0;
 
 # Apply this much velocity when jumping. m/s.
-export var jump_power = 20;
+export var jump_power = 20.0;
 
 # Friction coefficent applied to ground movement.
-export var ground_friction = 0.7;
+export var ground_friction = 0.8;
+
+# How much force to apply when moving with gas canister activated. m * s^(-2).
+# There is no limit on air speed, so the value should be quite low.
+export var gas_canister_air_control = 15.0;
+
+# TODO: I don't know how to explain.
+export var slowdown_angle = PI / 3;
 
 # Hook rope cannot get shorter than this.
 export var min_hook_length = 0.5;
@@ -25,7 +35,7 @@ export var max_hook_length = 50;
 export var hook_dampening_factor = 150;
 
 # Adjust the hook length by this many meters for each second scrolled.
-export var hook_length_adjust_factor = 80;
+export var hook_length_adjust_factor = 60.0;
 
 # Multiplied by relative mouse coordinates.
 export var mouse_sensitivity = 0.01;
@@ -44,11 +54,17 @@ var velocity = Vector3();
 # Adjustable hook length.
 var hook_length = max_hook_length;
 
+# Don't stop grappling while true.
+var hook_on = false;
+
 # Dampening defined by grappling hook's length.
 var hook_dampening = Vector3();
 
 # Mouse position for use in raycasting.
 var mouse_position = Vector2();
+
+# A little hack to get the starting position.
+onready var spawn_point = transform.origin;
 
 
 # Only accept mouse events for now.
@@ -65,35 +81,65 @@ func _physics_process(delta):
 	if Input.is_action_just_pressed("quit"):
 		get_tree().quit(0);
 	
-	# Capture the mouse to properly control camera.
+	if Input.is_action_just_pressed("reset"):
+		transform.origin = spawn_point;
+		hook_dampening = Vector3();
+		velocity = Vector3();
+		hook_on = false;
+	
 	if Input.is_action_pressed("pan_camera"):
+		# Capture the mouse to properly control camera.
 		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED);
 	else:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE);
 	
-	# In m * s^(-1) by default, so we multiply by delta again.
-	velocity.y -= gravity * delta;
+	# Apply gravity.
+	# It's in m * s^(-1) by default, so we multiply by delta again.
+	
+	var gas_node = get_node_or_null("Gas");
+	
+	if Input.is_action_pressed("gas_canister"):
+		if not gas_node:
+			gas_node = preload("res://entities/gas.tscn").instance();
+			add_child(gas_node);
+		velocity.y -= gas_canister_gravity * delta;
+	else:
+		if gas_node:
+			remove_child(gas_node);
+		velocity.y -= gravity * delta;
 	
 	# Can jump from the floor or the walls.
 	var has_support = is_on_floor() or is_on_wall();
 	
-	if has_support and Input.is_action_just_pressed("jump"):
+	# TODO: allow or disallow bhop?
+	if has_support and Input.is_action_pressed("jump"):
 		velocity.y += jump_power;
 	
 	# X = left/right, Y = forward/backward.
 	var movement = Vector2();
 	
+	# Force applied through directed movement.
+	var force = 0.0;
+	
+	if is_on_floor():
+		force += walking_acceleration;
+	
+	if Input.is_action_pressed("gas_canister"):
+		force += gas_canister_air_control;
+	
+	# Actual movement calculations.
+	
 	if Input.is_action_pressed("move_left"):
-		movement.x -= acceleration;
+		movement.x -= force;
 	
 	if Input.is_action_pressed("move_right"):
-		movement.x += acceleration;
+		movement.x += force;
 	
 	if Input.is_action_pressed("move_forward"):
-		movement.y += acceleration;
+		movement.y += force;
 	
 	if Input.is_action_pressed("move_backward"):
-		movement.y -= acceleration;
+		movement.y -= force;
 	
 	# Convert to m * s^(-2).
 	movement *= delta;
@@ -101,24 +147,37 @@ func _physics_process(delta):
 	# Ground speed, basically. Converted to 2D for easier manipulation.
 	var xz_velocity = Vector2(velocity.x, velocity.z);
 	
-	# TODO: implement walking backwards to add more friction.
+	# The formula below rotates the movement vector (the body's XZ, with
+	# the Z axis pointing forwards from it) to line up with the global
+	# coordinates.
+	#
+	# We are rotating by -theta, for which the formula is adjusted.
+	
+	var theta = rotation.y;
+	var absolute = Vector2();
+	
+	absolute.x -= sin(theta) * movement.y - cos(theta) * movement.x;
+	absolute.y -= cos(theta) * movement.y + sin(theta) * movement.x;
+	
+	# Compare the direction of walking and whatever forces act on us.
+	# If going in a different direction, apply our ground acceleration.
+	var angle = xz_velocity.angle_to(absolute);
+	
+	var counteracting = angle > slowdown_angle and angle < TAU - slowdown_angle;
+	
+	# Otherwise, compare ground velocity.
+	var speeding = xz_velocity.length() > max_walking_speed;
+	
 	if is_on_floor():
-		if xz_velocity.length() <= max_walking_speed:
-			# The formula below rotates the movement vector (the body's XZ, with
-			# the Z axis pointing forwards from it) to line up with the global
-			# coordinates.
-			#
-			# We are rotating by -theta, for which the formula is adjusted.
-			
-			var theta = rotation.y;
-			
-			# Apply acceleration if we can walk that fast.
-			xz_velocity.x += cos(theta) * movement.x - sin(theta) * movement.y;
-			xz_velocity.y -= cos(theta) * movement.y + sin(theta) * movement.x;
+		# Apply special rules for ground movement.
+		if counteracting or not speeding:
+			xz_velocity += absolute;
 		
 		# Apply friction. Assuming normal force is the opposite of gravity.
 		var friction_force = ground_friction * gravity * delta;
 		xz_velocity -= friction_force * xz_velocity.normalized();
+	else:
+		xz_velocity += absolute;
 	
 	# Apply the values from 2D modifications.
 	velocity.x = xz_velocity.x;
@@ -179,7 +238,10 @@ func grapple():
 	# Reset before calculating.
 	hook_dampening = Vector3();
 	
-	if not panning and Input.is_action_pressed("attach_hook"):
+	if Input.is_action_just_pressed("attach_hook"):
+		hook_on = not hook_on;
+	
+	if hook_on:
 		if hook_node:
 			if hook_node.get_length() > hook_length:
 				# Dampen towards the hook's end.
@@ -188,12 +250,14 @@ func grapple():
 				
 				# Scale according to the stretching factor.
 				hook_dampening *= hook_node.get_length() / hook_length;
-		else:
+		elif not panning:
 			# Create a new grappling hook if it doesn't exist.
 			var hook_target = cast_ray(max_hook_length);
 			
 			# Can't hook to anything.
 			if not hook_target:
+				# Also don't try to grapple every frame.
+				hook_on = false;
 				return;
 			
 			hook_node = preload("res://entities/grappling_hook.tscn").instance();
