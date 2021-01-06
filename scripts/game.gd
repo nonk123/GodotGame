@@ -4,17 +4,13 @@ extends Spatial
 # How many clients can connect at a time.
 export var max_clients = 32;
 
-# Point where all the players spawn.
-export var spawn_point = Vector3(100.0, 0.0, 100.0);
-
-# Connected peers' IDs.
-var connections = [];
-
 # True if we're connected to network.
 var _connected = false;
 
 # Our network ID.
 var _our_id;
+
+onready var _sun = $Terrain/Sun;
 
 
 enum Status {
@@ -24,6 +20,8 @@ enum Status {
 
 
 func _ready():
+	randomize();
+	
 	# Prevent warnings over discarded value.
 	var _tmp;
 	
@@ -33,8 +31,6 @@ func _ready():
 	_tmp = get_tree().connect("network_peer_connected", self, "_on_peer_connected");
 	_tmp = get_tree().connect("network_peer_disconnected", self, "_on_peer_dead");
 	_tmp = get_tree().connect("server_disconnected", self, "reset");
-	
-	$Players.translate(spawn_point);
 	
 	set_status(Status.DISCONNECTED);
 
@@ -109,18 +105,16 @@ func _on_peer_connected(new_id):
 	if not is_server():
 		return;
 	
-	# Spawn the new player for everyone.
+	
+	# Spawn everyone for the new player.
+	for player in $Players.get_children():
+		rpc_id(new_id, "spawn_player", int(player.name));
+	
+	# And spawn the new player for everyone.
 	rpc("spawn_player", new_id);
 	spawn_player(new_id);
 	
-	# And spawn everyone else for him. rpc_id on the host won't work though.
-	if new_id != _our_id:
-		for player_id in connections:
-			rpc_id(new_id, "spawn_player", player_id);
-	
-	connections.append(new_id);
-	
-	rpc_id(new_id, "finalize_connection");
+	rpc_id(new_id, "finalize_connection", _sun.current_time);
 
 
 func _on_peer_dead(dead_id):
@@ -130,21 +124,25 @@ func _on_peer_dead(dead_id):
 	# Delete their player for everyone, including the host.
 	rpc("delete_player", dead_id);
 	delete_player(dead_id);
-	
-	connections.erase(dead_id);
 
 
 func find_player_node(player_id):
 	return $Players.get_node(str(player_id));
 
 
-remotesync func finalize_connection():
+# Finalize connection and synchronize time.
+remotesync func finalize_connection(server_time):
+	_sun.current_time = server_time;
 	_connected = true;
 
 
 func apply_player_info(player_node, player_info):
 	# Apply the transform.
 	player_node.transform.origin = player_info["origin"];
+	
+	# Color the player's model.
+	var model = player_node.get_node("Shape/Model");
+	model.material.albedo_color = player_info["color"];
 	
 	var gas_node = player_node.get_node_or_null("Gas");
 	

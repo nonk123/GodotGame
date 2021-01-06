@@ -16,18 +16,21 @@ export var max_walking_speed = 10.0;
 # Apply this much velocity when jumping. m/s.
 export var jump_power = 20.0;
 
+# A big push received when the gas canister is activated. In m/s.
+export var dash_power = 50.0;
+
 # Friction coefficent applied to ground movement.
 export var ground_friction = 1.5;
 
 # How much force to apply when moving with gas canister activated. m * s^(-2).
 # There is no limit on air speed, so the value should be quite low.
-export var gas_canister_air_control = 12.0;
+export var gas_canister_air_control = 15.0;
 
-# TODO: I don't know how to explain this.
-export var slowdown_angle = PI / 3;
+# You cannot dash again for this long. In seconds.
+export var dash_cooldown = 5.0;
 
 # If the grappling hook gets this short, it snaps.
-export var min_hook_length = 1.5;
+export var min_hook_length = 2;
 
 # Maximum grappling distance, in meters.
 export var max_hook_length = 100.0;
@@ -36,10 +39,24 @@ export var max_hook_length = 100.0;
 export var hook_dampening_force = 80;
 
 # Adjust the hook length by this many meters for each second scrolled.
-export var hook_length_adjust_factor = 70.0;
+# The word "second" is not accurate here, but it _is_ scaled by delta. 
+export var hook_length_adjust_factor = 60.0;
 
 # Relative mouse coordinates are scaled by this much when panning.
 export var mouse_sensitivity = 0.01;
+
+# Zoom in by this many meters for each second scrolled.
+# As with all scrollwheel-dependent variables, it may be inaccurate.
+export var zoom_distance = 3;
+
+# The camera arm cannot get shorter than this many meters.
+export var min_zoom = 1.0;
+
+# The camera arm cannot get longer than this many meters.
+export var max_zoom = 10.0;
+
+# Assigned randomly at start.
+var player_color;
 
 # If positive, the player is turning right. If negative, turning left.
 # Value of zero means no turning. Modified by mouse input.
@@ -71,35 +88,60 @@ var _is_hook_on = false;
 # Dampening defined by grappling hook's length.
 var _hook_dampening = Vector3();
 
-# If true, the camera rotation follows the hook's end point.
-var _following_hook = false;
+# How much time _left_ until you can dash again.
+var _dash_cooldown = 0.0;
 
 # Mouse position for use in raycasting.
 var _mouse_position = Vector2();
+
+# Scroll direction received from an input event.
+var _scroll_direction = 0;
+
+# Custom cursor image.
+var _cursor = preload("res://textures/cursor.png");
 
 # Used to prevent re-shading the cursor every frame.
 var _last_cursor_shade = Color();
 
 # A little hack to get the starting position.
-onready var spawn_point = transform.origin;
+onready var spawn_point = get_parent_spatial().translation;
 
-# Custom cursor image.
-onready var _cursor = preload("res://textures/cursor.png");
+
+func _ready():
+	# Create a new material, which will be managed by the game.
+	$Shape/Model.material = SpatialMaterial.new();
+	player_color = Color(randf(), randf(), randf());
+	
+	if is_network_master():
+		# Set up the camera.
+		$SpringArm/Camera.make_current();
+		# And initialize the UI.
+		add_child(preload("res://entities/ui.tscn").instance());
 
 
 # Only accept mouse events for now.
 func _input(event):
-	if is_network_master() and event is InputEventMouseMotion:
-		_mouse_position = event.position;
-		
-		if Input.is_action_pressed("pan_camera"):
-			# Capture the mouse to properly control the camera.
-			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED);
+	if is_network_master():
+		if event is InputEventMouseMotion:
+			_mouse_position = event.position;
 			
-			_turn_direction = event.relative.x * mouse_sensitivity;
-			_pan_direction = event.relative.y * mouse_sensitivity;
-		else:
-			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE);
+			if Input.is_action_pressed("pan_camera"):
+				# Capture the mouse to properly control the camera.
+				Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED);
+				
+				_turn_direction = event.relative.x * mouse_sensitivity;
+				_pan_direction = event.relative.y * mouse_sensitivity;
+			else:
+				Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE);
+		elif event is InputEventMouseButton:
+			if event.pressed:
+				match event.button_index:
+					BUTTON_WHEEL_UP:
+						_scroll_direction = 1;
+					BUTTON_WHEEL_DOWN:
+						_scroll_direction = -1;
+					_:
+						_scroll_direction = 0;
 
 
 func _physics_process(delta):
@@ -107,13 +149,13 @@ func _physics_process(delta):
 	if not is_network_master():
 		return;
 	
-	# Go back to spawn. Reset all the velocities.
+	# Go back to spawn. Reset all the variables.
 	if Input.is_action_just_pressed("reset_myself"):
 		translation = Vector3();
 		_velocity = Vector3();
 		_hook_dampening = Vector3();
 		_is_hook_on = false;
-		_following_hook = false;
+		_dash_cooldown = 0.0;
 	
 	# Apply gravity.
 	# It's in m * s^(-1) by default, so we multiply by delta again.
@@ -143,7 +185,7 @@ func _physics_process(delta):
 		movement.x += walking_acceleration;
 	
 	# Keep in mind, the camera lines up with _negative_ Z.
-	# Forwards is backwards in this case.
+	# Forwards is negative in this case.
 	
 	if Input.is_action_pressed("move_forward"):
 		movement.y -= walking_acceleration;
@@ -159,26 +201,27 @@ func _physics_process(delta):
 	
 	# Ground speed, basically. Converted to 2D for easier manipulation.
 	var xz_velocity = Vector2(_velocity.x, _velocity.z);
-	
-	# Compare the direction of walking and whatever forces act on us.
-	# If going in a different direction, apply our ground acceleration.
-	
-	var angle = xz_velocity.angle_to(movement);
-	var counteracting = angle > slowdown_angle and angle < TAU - slowdown_angle;
-	
-	# Otherwise, compare ground velocity.
+
 	var speeding = xz_velocity.length() > max_walking_speed;
 	
-	if Input.is_action_pressed("gas_canister"):
-		var movement_direction = movement / walking_acceleration;
-		var gas_movement = movement_direction * gas_canister_air_control;
+	_dash_cooldown -= delta;
+	
+	# Try dashing.
+	if Input.is_action_just_pressed("gas_canister") and _dash_cooldown <= 0.0:
+		var dash_velocity = movement.normalized() * dash_power;
 		
-		# Gas is always applied.
-		xz_velocity += gas_movement;
+		# Don't start the cooldown timer if we're not dashing.
+		if dash_velocity.length_squared() > 0.0:
+			xz_velocity += dash_velocity;
+			_dash_cooldown = dash_cooldown;
+	
+	if Input.is_action_pressed("gas_canister"):
+		# The difference between .normalized() and division is that the latter
+		# includes the delta.
+		xz_velocity += movement / walking_acceleration * gas_canister_air_control;
 	
 	if is_on_floor():
-		# But special rules apply to walking.
-		if counteracting or not speeding:
+		if not speeding:
 			xz_velocity += movement;
 		
 		var normal_force = _velocity.length();
@@ -203,8 +246,9 @@ func _process(delta):
 		if Input.is_action_just_pressed("quit"):
 			get_tree().quit(0);
 		
-		_adjust_for_camera();
+		_adjust_for_camera(delta);
 		_run_smart_cursor();
+		_update_ui();
 		_grapple(delta);
 
 
@@ -213,6 +257,7 @@ func get_info():
 		"origin": transform.origin,
 		"hook_end": _hook_end,
 		"gas_is_on": _gas_is_on,
+		"color": player_color,
 	};
 
 
@@ -251,26 +296,31 @@ func _run_smart_cursor():
 	Input.set_custom_mouse_cursor(cursor, Input.CURSOR_ARROW, hotspot);
 
 
-func _adjust_for_camera():
-	if Input.is_action_just_pressed("follow_hook"):
-		_following_hook = not _following_hook; # toggle
+func _update_ui():
+	var dash_progress = get_node_or_null("UI/BottomRight/DashCooldown");
+	dash_progress.value = 1.0 - _dash_cooldown / dash_cooldown;
 	
+	var position_label = get_node_or_null("UI/TopRight/Position");
+	
+	var position = global_transform.origin;
+	var format = "X: %.2f; Y: %.2f; Z: %.2f";
+	
+	position_label.text = format % [position.x, position.y, position.z];
+
+
+func _adjust_for_camera(delta):
 	# Turn the whole body for horizontal rotation.
-	if _following_hook and _is_hook_on:
-		var position = global_transform.origin;
-		
-		var xz_position = Vector2(position.x, position.z);
-		var xz_hook_end = Vector2(_hook_end.x, _hook_end.z);
-		
-		rotation.y = 1.5 * PI - (xz_hook_end - xz_position).angle();
-	else:
-		_following_hook = false;
-		rotate_y(-_turn_direction);
+	rotate_y(-_turn_direction);
 	
 	var arm = $SpringArm;
 	
 	# Only pan the camera arm.
 	arm.rotate_x(-_pan_direction);
+	
+	# Zoom in/out.
+	if Input.is_action_pressed("pan_camera"):
+		arm.spring_length -= zoom_distance * delta * _scroll_direction;
+		arm.spring_length = clamp(arm.spring_length, min_zoom, max_zoom);
 	
 	# Limit the rotation.
 	arm.rotation.x = clamp(arm.rotation.x, -PI / 2.0, PI / 2.0);
@@ -280,13 +330,6 @@ func _adjust_for_camera():
 	_pan_direction = 0.0;
 
 
-# Return true if a scrollwheel action is in progress.
-func _check_scrollwheel_action(action):
-	var just_pressed = Input.is_action_just_pressed(action);
-	var just_released = Input.is_action_just_released(action);
-	return just_pressed or just_released;
-
-
 func _grapple(delta):
 	# Prevent weird hook behaviour when the mouse is captured.
 	var panning = Input.is_action_pressed("pan_camera");
@@ -294,17 +337,17 @@ func _grapple(delta):
 	# Reset before calculating.
 	_hook_dampening = Vector3();
 	
-	# Fiddle with the hook length.
-	
-	if _check_scrollwheel_action("tighten_rope"):
-		_adjusted_hook_length -= hook_length_adjust_factor * delta;
-	elif _check_scrollwheel_action("loosen_rope"):
-		_adjusted_hook_length += hook_length_adjust_factor * delta;
-	
-	_adjusted_hook_length = clamp(_adjusted_hook_length, 0.1, max_hook_length);
-	
 	if Input.is_action_just_pressed("attach_hook"):
 		_is_hook_on = not _is_hook_on; # toggle
+	
+	if _hook_end and not panning:
+		# Fiddle with the hook length.
+		var base_speed = hook_length_adjust_factor * delta;
+		var adjust = get_hook_length() / max_hook_length;
+		var result = base_speed * adjust;
+		
+		_adjusted_hook_length -= result * _scroll_direction;
+		_adjusted_hook_length = clamp(_adjusted_hook_length, 1, max_hook_length);
 	
 	# Break the hook if it gets too short.
 	if _hook_end and get_hook_length() <= min_hook_length:

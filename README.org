@@ -1,6 +1,7 @@
 * GodotGame
 
-An unnamed game of questionable quality.
+An unnamed game of questionable quality. Currently a tribute to the
+Attack on Titan Tribute Game by fenglee.
 
 Refer to [[./addons/README.org]] for info on how to make this project work.
 

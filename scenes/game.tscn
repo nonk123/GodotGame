@@ -1,18 +1,22 @@
-[gd_scene load_steps=10 format=2]
+[gd_scene load_steps=12 format=2]
 
 [ext_resource path="res://addons/zylann.hterrain/hterrain_texture_set.gd" type="Script" id=1]
 [ext_resource path="res://addons/zylann.hterrain/hterrain.gd" type="Script" id=2]
-[ext_resource path="res://addons/zylann.hterrain/data.hterrain" type="Resource" id=3]
+[ext_resource path="res://scenes/terrain/data.hterrain" type="Resource" id=3]
 [ext_resource path="res://slot0_albedo_bump.packed_tex" type="Texture" id=4]
 [ext_resource path="res://slot0_normal_roughness.packed_tex" type="Texture" id=5]
 [ext_resource path="res://entities/big_tree.tscn" type="PackedScene" id=6]
 [ext_resource path="res://entities/multiplayer_menu.tscn" type="PackedScene" id=7]
 [ext_resource path="res://scripts/game.gd" type="Script" id=8]
+[ext_resource path="res://entities/sun.tscn" type="PackedScene" id=9]
 
 [sub_resource type="Resource" id=1]
 script = ExtResource( 1 )
 mode = 0
 textures = [ [ ExtResource( 4 ) ], [ ExtResource( 5 ) ] ]
+
+[sub_resource type="SpatialMaterial" id=2]
+albedo_color = Color( 0.560784, 0.560784, 0.560784, 1 )
 
 [node name="World" type="Spatial"]
 script = ExtResource( 8 )
@@ -35,6 +39,17 @@ shader_params/u_ground_uv_scale = 20
 shader_params/u_depth_blending = true
 shader_params/u_triplanar = false
 shader_params/u_tile_reduction = Plane( 0, 0, 0, 0 )
+
+[node name="Sun" parent="Terrain" instance=ExtResource( 9 )]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 256, 0, 256 )
+
+[node name="SpawnPlatform" type="CSGBox" parent="Terrain"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 256, 10.5, 256 )
+use_collision = true
+width = 8.0
+height = 3.0
+depth = 8.0
+material = SubResource( 2 )
 
 [node name="Tree" parent="Terrain" instance=ExtResource( 6 )]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 77.2159, 0, 45.3921 )
@@ -87,9 +102,7 @@ transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 96.5582, 0.333588, 273.658 )
 [node name="Tree17" parent="Terrain" instance=ExtResource( 6 )]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 122.132, 0.333588, 192.069 )
 
-[node name="Sun" type="DirectionalLight" parent="."]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 100, 0 )
-
 [node name="Players" type="Spatial" parent="."]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 256, 12, 256 )
 
 [node name="Multiplayer" parent="." instance=ExtResource( 7 )]
