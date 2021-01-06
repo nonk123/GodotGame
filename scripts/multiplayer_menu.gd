@@ -13,19 +13,19 @@ const default_port = 15347;
 
 
 func _ready():
-	var host_button = $Center/HSplit/HostSplit/HostButton;
-	var join_button = $Center/HSplit/JoinSplit/JoinButton;
+	var host_button = $HSplit/HostSplit/HostButton;
+	var join_button = $HSplit/JoinSplit/JoinButton;
 	
 	host_button.connect("pressed", self, "_on_HostButton_pressed");
 	join_button.connect("pressed", self, "_on_JoinButton_pressed");
 	
 	# Insert default port.
-	$Center/HSplit/HostSplit/PortField.text = str(default_port);
-	$Center/HSplit/JoinSplit/PortField.text = str(default_port);
+	$HSplit/HostSplit/PortField.text = str(default_port);
+	$HSplit/JoinSplit/PortField.text = str(default_port);
 
 
 func _on_HostButton_pressed():
-	var port_field = $Center/HSplit/HostSplit/PortField;
+	var port_field = $HSplit/HostSplit/PortField;
 	
 	var port = int(port_field.text);
 	
@@ -36,8 +36,8 @@ func _on_HostButton_pressed():
 
 
 func _on_JoinButton_pressed():
-	var port_field = $Center/HSplit/JoinSplit/PortField;
-	var address_field = $Center/HSplit/JoinSplit/AddressField;
+	var port_field = $HSplit/JoinSplit/PortField;
+	var address_field = $HSplit/JoinSplit/AddressField;
 		
 	var port = int(port_field.text);
 	var address = address_field.text;

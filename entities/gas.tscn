@@ -3,8 +3,8 @@
 [ext_resource path="res://textures/smoke.png" type="Texture" id=1]
 
 [sub_resource type="ParticlesMaterial" id=1]
-emission_shape = 2
-emission_box_extents = Vector3( 1, 0, 1 )
+emission_shape = 1
+emission_sphere_radius = 0.5
 direction = Vector3( 0, -1, 0 )
 spread = 25.0
 radial_accel = 3.0
@@ -19,7 +19,7 @@ albedo_texture = ExtResource( 1 )
 material = SubResource( 2 )
 
 [node name="Gas" type="Particles"]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, 0 )
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0 )
 amount = 12
 lifetime = 0.6
 process_material = SubResource( 1 )

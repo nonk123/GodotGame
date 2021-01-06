@@ -3,3 +3,5 @@
 An unnamed game of questionable quality.
 
 Refer to [[./addons/README.org]] for info on how to make this project work.
+
+Most of the assets were taken from [[http://opengameart.org/]].

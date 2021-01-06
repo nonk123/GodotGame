@@ -1,43 +1,32 @@
 extends Spatial
 
 
-# Rope's start, in absolute coordinates.
-# Currently attached to the parent node.
-const start = Vector3();
-
 # Rope's end point, in absolute coordinates.
 var end;
 
-# Material to draw the rope with.
-var material;
+# Used for drawing the line.
+onready var material = SpatialMaterial.new();
 
 
 func _ready():
-	material = SpatialMaterial.new();
-	material.albedo_color = Color(0.0, 0.0, 0.0, 1.0);
+	material.albedo_color = Color(0.0, 0.0, 0.0);
 
 
 func _process(_delta):
 	var rope = $Rope;
+	var hook = $Rope/Hook;
 	
-	rope.material_override = material;
+	var start = Vector3(0.0, 0.5, 0.0);
+	
+	hook.global_transform.origin = end;
+	
+	var parent_rotation = get_parent_spatial().rotation;
+	rope.rotation.y = -parent_rotation.y;
 	
 	rope.clear();
+	rope.material_override = material;
 	
-	# Draw a line from current position to the end.
 	rope.begin(Mesh.PRIMITIVE_LINES);
-	
-	var origin = get_parent_spatial().global_transform.origin;
-
-	var parent_transform = get_parent_spatial().transform;
-	var parent_y_rotation = parent_transform.basis.get_euler().y;
-	
-	var y_axis = Vector3(0.0, 1.0, 0.0);
-	
-	# Adjust to local coordinates.
-	var relative_end = (end - origin).rotated(y_axis, -parent_y_rotation);
-	
-	rope.add_vertex(Vector3());
-	rope.add_vertex(relative_end);
-	
+	rope.add_vertex(start);
+	rope.add_vertex(end - global_transform.origin);
 	rope.end();

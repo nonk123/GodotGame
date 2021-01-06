@@ -11,7 +11,7 @@ export var gas_canister_gravity = 15.0;
 export var walking_acceleration = 150.0;
 
 # A character cannot walk faster than this value. m/s.
-export var max_walking_speed = 20.0;
+export var max_walking_speed = 10.0;
 
 # Apply this much velocity when jumping. m/s.
 export var jump_power = 20.0;
@@ -26,19 +26,19 @@ export var gas_canister_air_control = 12.0;
 # TODO: I don't know how to explain this.
 export var slowdown_angle = PI / 3;
 
-# Hook rope cannot get shorter than this.
-export var min_hook_length = 0.5;
+# If the grappling hook gets this short, it snaps.
+export var min_hook_length = 1.5;
 
 # Maximum grappling distance, in meters.
-export var max_hook_length = 80.0;
+export var max_hook_length = 100.0;
 
 # Apply this much force when hanging from the grappling hook. m * s^(-2).
-export var hook_dampening_factor = 150;
+export var hook_dampening_force = 80;
 
 # Adjust the hook length by this many meters for each second scrolled.
-export var hook_length_adjust_factor = 60.0;
+export var hook_length_adjust_factor = 70.0;
 
-# Multiplied by relative mouse coordinates.
+# Relative mouse coordinates are scaled by this much when panning.
 export var mouse_sensitivity = 0.01;
 
 # If positive, the player is turning right. If negative, turning left.
@@ -65,17 +65,26 @@ var _hook_end = null;
 # Contains two keys: "them", the hooked entity, and "offset" of the hook.
 var _hooked_entity = null;
 
-# Don't stop grappling while true.
-var _hook_on = false;
+# Set this to false to break the grappling hook.
+var _is_hook_on = false;
 
 # Dampening defined by grappling hook's length.
 var _hook_dampening = Vector3();
 
+# If true, the camera rotation follows the hook's end point.
+var _following_hook = false;
+
 # Mouse position for use in raycasting.
 var _mouse_position = Vector2();
 
+# Used to prevent re-shading the cursor every frame.
+var _last_cursor_shade = Color();
+
 # A little hack to get the starting position.
 onready var spawn_point = transform.origin;
+
+# Custom cursor image.
+onready var _cursor = preload("res://textures/cursor.png");
 
 
 # Only accept mouse events for now.
@@ -84,8 +93,13 @@ func _input(event):
 		_mouse_position = event.position;
 		
 		if Input.is_action_pressed("pan_camera"):
+			# Capture the mouse to properly control the camera.
+			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED);
+			
 			_turn_direction = event.relative.x * mouse_sensitivity;
 			_pan_direction = event.relative.y * mouse_sensitivity;
+		else:
+			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE);
 
 
 func _physics_process(delta):
@@ -93,11 +107,13 @@ func _physics_process(delta):
 	if not is_network_master():
 		return;
 	
-	if Input.is_action_pressed("pan_camera"):
-		# Capture the mouse to properly control camera.
-		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED);
-	else:
-		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE);
+	# Go back to spawn. Reset all the velocities.
+	if Input.is_action_just_pressed("reset_myself"):
+		translation = Vector3();
+		_velocity = Vector3();
+		_hook_dampening = Vector3();
+		_is_hook_on = false;
+		_following_hook = false;
 	
 	# Apply gravity.
 	# It's in m * s^(-1) by default, so we multiply by delta again.
@@ -113,37 +129,27 @@ func _physics_process(delta):
 	# TODO: special walljump behaviour?
 	var has_support = is_on_floor() or is_on_wall();
 	
-	# TODO: allow or disallow bhop?
-	if has_support and Input.is_action_pressed("jump"):
+	# No autojump.
+	if has_support and Input.is_action_just_pressed("jump"):
 		_velocity.y += jump_power;
 	
 	# X = left/right, Y = forward/backward.
 	var movement = Vector2();
 	
-	# Force applied through directed movement.
-	var force = 0.0;
-	
-	if is_on_floor():
-		force += walking_acceleration;
-	
-	if Input.is_action_pressed("gas_canister"):
-		force += gas_canister_air_control;
-	
-	# Actual movement calculations.
-	
 	if Input.is_action_pressed("move_left"):
-		movement.x -= force;
+		movement.x -= walking_acceleration;
 	
 	if Input.is_action_pressed("move_right"):
-		movement.x += force;
+		movement.x += walking_acceleration;
 	
 	# Keep in mind, the camera lines up with _negative_ Z.
+	# Forwards is backwards in this case.
 	
 	if Input.is_action_pressed("move_forward"):
-		movement.y -= force;
+		movement.y -= walking_acceleration;
 	
 	if Input.is_action_pressed("move_backward"):
-		movement.y += force;
+		movement.y += walking_acceleration;
 	
 	# Convert to m * s^(-2).
 	movement *= delta;
@@ -163,17 +169,23 @@ func _physics_process(delta):
 	# Otherwise, compare ground velocity.
 	var speeding = xz_velocity.length() > max_walking_speed;
 	
+	if Input.is_action_pressed("gas_canister"):
+		var movement_direction = movement / walking_acceleration;
+		var gas_movement = movement_direction * gas_canister_air_control;
+		
+		# Gas is always applied.
+		xz_velocity += gas_movement;
+	
 	if is_on_floor():
+		# But special rules apply to walking.
 		if counteracting or not speeding:
 			xz_velocity += movement;
 		
-		# Apply friction.
 		var normal_force = _velocity.length();
 		var friction_force = ground_friction * normal_force * delta;
 		
+		# Simulate friction.
 		xz_velocity -= friction_force * xz_velocity.normalized();
-	else:
-		xz_velocity += movement;
 	
 	_velocity.x = xz_velocity.x;
 	_velocity.z = xz_velocity.y;
@@ -192,6 +204,7 @@ func _process(delta):
 			get_tree().quit(0);
 		
 		_adjust_for_camera();
+		_run_smart_cursor();
 		_grapple(delta);
 
 
@@ -203,9 +216,56 @@ func get_info():
 	};
 
 
+# Modify image data directly to replace non-transparent pixels with color.
+func _shade_cursor(color):
+	# Don't re-shade into the same color.
+	if _last_cursor_shade == color:
+		return;
+	
+	_cursor.lock();
+	
+	for x in range(_cursor.get_width()):
+		for y in range(_cursor.get_height()):
+			if _cursor.get_pixel(x, y).a == 1:
+				_cursor.set_pixel(x, y, color);
+	
+	_cursor.unlock();
+	
+	_last_cursor_shade = color;
+
+
+func _run_smart_cursor():
+	var result = cast_ray(max_hook_length);
+	
+	var hotspot = _cursor.get_size() / 2.0;
+	
+	var can_hit = Color(1.0, 1.0, 1.0);
+	var too_far = Color(1.0, 0.0, 0.0);
+	
+	_shade_cursor(can_hit if result else too_far);
+	
+	# Convert to a texture usable as a cursor.
+	var cursor = ImageTexture.new();
+	cursor.create_from_image(_cursor);
+	
+	Input.set_custom_mouse_cursor(cursor, Input.CURSOR_ARROW, hotspot);
+
+
 func _adjust_for_camera():
-	# Turn the whole body.
-	rotate_y(-_turn_direction);
+	if Input.is_action_just_pressed("follow_hook"):
+		_following_hook = not _following_hook; # toggle
+	
+	# Turn the whole body for horizontal rotation.
+	if _following_hook and _is_hook_on:
+		var position = global_transform.origin;
+		
+		var xz_position = Vector2(position.x, position.z);
+		var xz_hook_end = Vector2(_hook_end.x, _hook_end.z);
+		
+		rotation.y = 1.5 * PI - (xz_hook_end - xz_position).angle();
+	else:
+		_following_hook = false;
+		rotate_y(-_turn_direction);
 	
 	var arm = $SpringArm;
 	
@@ -220,6 +280,13 @@ func _adjust_for_camera():
 	_pan_direction = 0.0;
 
 
+# Return true if a scrollwheel action is in progress.
+func _check_scrollwheel_action(action):
+	var just_pressed = Input.is_action_just_pressed(action);
+	var just_released = Input.is_action_just_released(action);
+	return just_pressed or just_released;
+
+
 func _grapple(delta):
 	# Prevent weird hook behaviour when the mouse is captured.
 	var panning = Input.is_action_pressed("pan_camera");
@@ -228,18 +295,22 @@ func _grapple(delta):
 	_hook_dampening = Vector3();
 	
 	# Fiddle with the hook length.
-	if Input.is_action_just_released("tighten_rope"):
+	
+	if _check_scrollwheel_action("tighten_rope"):
 		_adjusted_hook_length -= hook_length_adjust_factor * delta;
-	elif Input.is_action_just_released("loosen_rope"):
+	elif _check_scrollwheel_action("loosen_rope"):
 		_adjusted_hook_length += hook_length_adjust_factor * delta;
 	
-	_adjusted_hook_length = clamp(_adjusted_hook_length, min_hook_length, max_hook_length);
+	_adjusted_hook_length = clamp(_adjusted_hook_length, 0.1, max_hook_length);
 	
 	if Input.is_action_just_pressed("attach_hook"):
-		# Toggle.
-		_hook_on = not _hook_on;
+		_is_hook_on = not _is_hook_on; # toggle
 	
-	if not _hook_on:
+	# Break the hook if it gets too short.
+	if _hook_end and get_hook_length() <= min_hook_length:
+		_is_hook_on = false;
+	
+	if not _is_hook_on:
 		_hook_end = null;
 		_hooked_entity = null;
 		return;
@@ -254,9 +325,8 @@ func _grapple(delta):
 			# Dampen towards the hook's end.
 			var relative_hook_end = _hook_end - global_transform.origin;
 			var direction = relative_hook_end.normalized();
-			_hook_dampening = direction * hook_dampening_factor;
 			
-			# Scale according to the stretching factor.
+			_hook_dampening = direction * hook_dampening_force;
 			_hook_dampening *= get_hook_length() / _adjusted_hook_length;
 	elif not panning:
 		# Create a new grappling hook if it doesn't exist.
@@ -272,7 +342,7 @@ func _grapple(delta):
 				var their_transform = _hooked_entity["them"].global_transform;
 				_hooked_entity["offset"] = _hook_end - their_transform.origin;
 		else:
-			_hook_on = false;
+			_is_hook_on = false;
 
 
 func get_hook_length():
