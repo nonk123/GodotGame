@@ -4,7 +4,7 @@
 
 [sub_resource type="ParticlesMaterial" id=1]
 emission_shape = 1
-emission_sphere_radius = 0.5
+emission_sphere_radius = 0.3
 direction = Vector3( 0, -1, 0 )
 spread = 25.0
 radial_accel = 3.0
@@ -19,7 +19,7 @@ albedo_texture = ExtResource( 1 )
 material = SubResource( 2 )
 
 [node name="Gas" type="Particles"]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0 )
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.4, 0 )
 amount = 12
 lifetime = 0.6
 process_material = SubResource( 1 )

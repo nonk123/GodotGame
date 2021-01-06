@@ -11,83 +11,81 @@ __meta__ = {
 [node name="HSplit" type="HBoxContainer" parent="."]
 margin_left = 10.0
 margin_top = 10.0
-custom_constants/separation = 30
+margin_right = 180.0
+margin_bottom = 126.0
+custom_constants/separation = 10
 __meta__ = {
 "_edit_use_anchors_": false
 }
 
 [node name="HostSplit" type="VBoxContainer" parent="HSplit"]
 margin_right = 80.0
-margin_bottom = 100.0
+margin_bottom = 116.0
+rect_min_size = Vector2( 80, 0 )
 custom_constants/separation = 5
 
 [node name="PortLabel" type="Label" parent="HSplit/HostSplit"]
 margin_right = 80.0
-margin_bottom = 15.0
-rect_min_size = Vector2( 80, 15 )
+margin_bottom = 14.0
 text = "Port:"
 
-[node name="PortField" type="TextEdit" parent="HSplit/HostSplit"]
-margin_top = 20.0
+[node name="PortField" type="LineEdit" parent="HSplit/HostSplit"]
+margin_top = 19.0
 margin_right = 80.0
-margin_bottom = 35.0
-rect_min_size = Vector2( 80, 15 )
+margin_bottom = 43.0
+__meta__ = {
+"_edit_use_anchors_": false
+}
 
 [node name="HostButton" type="Button" parent="HSplit/HostSplit"]
-margin_top = 40.0
+margin_top = 48.0
 margin_right = 80.0
-margin_bottom = 60.0
-rect_min_size = Vector2( 80, 15 )
+margin_bottom = 68.0
 text = "Host!"
 
 [node name="Center" type="CenterContainer" parent="HSplit/HostSplit"]
-margin_top = 65.0
+margin_top = 73.0
 margin_right = 80.0
-margin_bottom = 100.0
+margin_bottom = 116.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
 [node name="Status" type="Label" parent="HSplit/HostSplit/Center"]
 margin_left = 40.0
-margin_top = 10.0
+margin_top = 14.0
 margin_right = 40.0
-margin_bottom = 24.0
+margin_bottom = 28.0
 
 [node name="JoinSplit" type="VBoxContainer" parent="HSplit"]
-margin_left = 110.0
-margin_right = 190.0
-margin_bottom = 100.0
+margin_left = 90.0
+margin_right = 170.0
+margin_bottom = 116.0
+rect_min_size = Vector2( 80, 0 )
 custom_constants/separation = 5
 
 [node name="AddressLabel" type="Label" parent="HSplit/JoinSplit"]
 margin_right = 80.0
-margin_bottom = 15.0
-rect_min_size = Vector2( 80, 15 )
+margin_bottom = 14.0
 text = "Address:"
 
-[node name="AddressField" type="TextEdit" parent="HSplit/JoinSplit"]
-margin_top = 20.0
+[node name="AddressField" type="LineEdit" parent="HSplit/JoinSplit"]
+margin_top = 19.0
 margin_right = 80.0
-margin_bottom = 35.0
-rect_min_size = Vector2( 80, 15 )
-text = "127.0.0.1"
+margin_bottom = 43.0
 
 [node name="PortLabel" type="Label" parent="HSplit/JoinSplit"]
-margin_top = 40.0
+margin_top = 48.0
 margin_right = 80.0
-margin_bottom = 55.0
-rect_min_size = Vector2( 80, 15 )
+margin_bottom = 62.0
 text = "Port:"
 
-[node name="PortField" type="TextEdit" parent="HSplit/JoinSplit"]
-margin_top = 60.0
+[node name="PortField" type="LineEdit" parent="HSplit/JoinSplit"]
+margin_top = 67.0
 margin_right = 80.0
-margin_bottom = 75.0
-rect_min_size = Vector2( 80, 15 )
+margin_bottom = 91.0
 
 [node name="JoinButton" type="Button" parent="HSplit/JoinSplit"]
-margin_top = 80.0
+margin_top = 96.0
 margin_right = 80.0
-margin_bottom = 100.0
-rect_min_size = Vector2( 80, 15 )
+margin_bottom = 116.0
 text = "Join!"

@@ -147,7 +147,7 @@ func apply_player_info(player_node, player_info):
 	var gas_node = player_node.get_node_or_null("Gas");
 	
 	# Manage the gas node.
-	if player_info["gas_is_on"]:
+	if player_info["show_gas"]:
 		if not gas_node:
 			gas_node = preload("res://entities/gas.tscn").instance();
 			player_node.add_child(gas_node);

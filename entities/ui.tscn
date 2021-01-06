@@ -1,7 +1,10 @@
-[gd_scene load_steps=2 format=2]
+[gd_scene load_steps=3 format=2]
+
+[sub_resource type="StyleBoxFlat" id=2]
+bg_color = Color( 0, 0.8, 0.180392, 1 )
 
 [sub_resource type="StyleBoxFlat" id=1]
-bg_color = Color( 0.14902, 0.552941, 0.541176, 1 )
+bg_color = Color( 0.529412, 0.717647, 0.572549, 1 )
 
 [node name="UI" type="Control"]
 anchor_right = 1.0
@@ -10,33 +13,65 @@ __meta__ = {
 "_edit_use_anchors_": false
 }
 
-[node name="TopRight" type="Control" parent="."]
-anchor_left = 0.8
+[node name="Position" type="Label" parent="."]
 anchor_right = 1.0
-anchor_bottom = 0.05
+anchor_bottom = 1.0
+align = 2
 __meta__ = {
 "_edit_use_anchors_": false
 }
 
-[node name="Position" type="Label" parent="TopRight"]
+[node name="BottomRight" type="VBoxContainer" parent="."]
+anchor_left = 0.8
+anchor_top = 0.9
 anchor_right = 1.0
 anchor_bottom = 1.0
+alignment = 1
 __meta__ = {
 "_edit_use_anchors_": false
 }
 
-[node name="BottomRight" type="Control" parent="."]
-anchor_left = 0.8
-anchor_top = 0.95
-anchor_right = 1.0
-anchor_bottom = 1.0
+[node name="Speedometer" type="ProgressBar" parent="BottomRight"]
+margin_top = 3.0
+margin_right = 204.0
+margin_bottom = 28.0
+rect_min_size = Vector2( 0, 25 )
+custom_styles/fg = SubResource( 2 )
+max_value = 1.0
+value = 0.5
+allow_greater = true
+percent_visible = false
+__meta__ = {
+"_edit_use_anchors_": false
+}
 
-[node name="DashCooldown" type="ProgressBar" parent="BottomRight"]
+[node name="Gauge" type="Label" parent="BottomRight/Speedometer"]
 anchor_right = 1.0
 anchor_bottom = 1.0
+align = 1
+valign = 1
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="GasMeter" type="ProgressBar" parent="BottomRight"]
+margin_top = 32.0
+margin_right = 204.0
+margin_bottom = 57.0
+rect_min_size = Vector2( 0, 25 )
 custom_styles/fg = SubResource( 1 )
 max_value = 1.0
+value = 0.5
 percent_visible = false
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Gauge" type="Label" parent="BottomRight/GasMeter"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+align = 1
+valign = 1
 __meta__ = {
 "_edit_use_anchors_": false
 }
