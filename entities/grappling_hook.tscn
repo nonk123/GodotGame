@@ -11,7 +11,7 @@ script = ExtResource( 1 )
 [node name="Rope" type="ImmediateGeometry" parent="."]
 
 [node name="Hook" type="CSGSphere" parent="Rope"]
-radius = 0.2
+radius = 0.1
 radial_segments = 8
 rings = 8
 material = SubResource( 1 )

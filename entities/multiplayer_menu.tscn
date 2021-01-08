@@ -72,6 +72,7 @@ text = "Address:"
 margin_top = 19.0
 margin_right = 80.0
 margin_bottom = 43.0
+text = "127.0.0.1"
 
 [node name="PortLabel" type="Label" parent="HSplit/JoinSplit"]
 margin_top = 48.0

@@ -1,12 +1,12 @@
 [gd_scene load_steps=3 format=2]
 
-[sub_resource type="StyleBoxFlat" id=2]
+[sub_resource type="StyleBoxFlat" id=1]
 bg_color = Color( 0, 0.8, 0.180392, 1 )
 
-[sub_resource type="StyleBoxFlat" id=1]
+[sub_resource type="StyleBoxFlat" id=2]
 bg_color = Color( 0.529412, 0.717647, 0.572549, 1 )
 
-[node name="UI" type="Control"]
+[node name="HUD" type="Control"]
 anchor_right = 1.0
 anchor_bottom = 1.0
 __meta__ = {
@@ -36,8 +36,8 @@ margin_top = 3.0
 margin_right = 204.0
 margin_bottom = 28.0
 rect_min_size = Vector2( 0, 25 )
-custom_styles/fg = SubResource( 2 )
-max_value = 1.0
+custom_styles/fg = SubResource( 1 )
+max_value = 150.0
 value = 0.5
 allow_greater = true
 percent_visible = false
@@ -54,12 +54,12 @@ __meta__ = {
 "_edit_use_anchors_": false
 }
 
-[node name="GasMeter" type="ProgressBar" parent="BottomRight"]
+[node name="GasBar" type="ProgressBar" parent="BottomRight"]
 margin_top = 32.0
 margin_right = 204.0
 margin_bottom = 57.0
 rect_min_size = Vector2( 0, 25 )
-custom_styles/fg = SubResource( 1 )
+custom_styles/fg = SubResource( 2 )
 max_value = 1.0
 value = 0.5
 percent_visible = false
@@ -67,7 +67,7 @@ __meta__ = {
 "_edit_use_anchors_": false
 }
 
-[node name="Gauge" type="Label" parent="BottomRight/GasMeter"]
+[node name="Gauge" type="Label" parent="BottomRight/GasBar"]
 anchor_right = 1.0
 anchor_bottom = 1.0
 align = 1

@@ -2,183 +2,127 @@ extends Spatial
 
 
 # How many clients can connect at a time.
-export var max_clients = 32;
+export var max_clients = 32
 
 # True if we're connected to network.
-var _connected = false;
+var connected
 
-# Our network ID.
-var _our_id;
-
-onready var _sun = $Terrain/Sun;
-
-
-enum Status {
-	DISCONNECTED,
-	CONNECTED,
-}
+onready var _sun = $Terrain/Sun
 
 
 func _ready():
-	randomize();
+	randomize()
 	
 	# Prevent warnings over discarded value.
-	var _tmp;
+	var _tmp
 	
-	_tmp = $Multiplayer.connect("tried_hosting", self, "_try_to_host");
-	_tmp = $Multiplayer.connect("tried_joining", self, "_try_to_join");
+	_tmp = $Multiplayer.connect("tried_hosting", self, "_try_to_host")
+	_tmp = $Multiplayer.connect("tried_joining", self, "_try_to_join")
 	
-	_tmp = get_tree().connect("network_peer_connected", self, "_on_peer_connected");
-	_tmp = get_tree().connect("network_peer_disconnected", self, "_on_peer_dead");
-	_tmp = get_tree().connect("server_disconnected", self, "reset");
+	_tmp = get_tree().connect("network_peer_connected", self, "_on_peer_connected")
+	_tmp = get_tree().connect("network_peer_disconnected", self, "_on_peer_dead")
+	_tmp = get_tree().connect("server_disconnected", self, "reset")
 	
-	set_status(Status.DISCONNECTED);
-
+	reset()
 
 func _process(_delta):
-	if _connected:
-		# Send our info to other players.
-		var us = find_player_node(_our_id);
-		rpc_unreliable("receive_player_info", us.get_info());
+	var status_label = $Multiplayer/HSplit/HostSplit/Center/Status
+	status_label.text = "Connected" if connected else "Disconnected"
 
 
 func is_server():
-	return get_tree().network_peer && get_tree().is_network_server();
-
-
-# Display status in the status label.
-func set_status(status):
-	var status_label = $Multiplayer/HSplit/HostSplit/Center/Status;
-	
-	if status == Status.DISCONNECTED:
-		status_label.text = "Disconnected";
-	else:
-		status_label.text = "Connected";
+	return get_tree().network_peer && get_tree().is_network_server()
 
 
 # Reset the game state.
 func reset():
 	# Close the connection before opening another one.
 	if get_tree().network_peer:
-		get_tree().network_peer = null;
-	
-	set_status(Status.DISCONNECTED);
+		get_tree().network_peer = null
 	
 	# Reset the mouse cursor set by the player.
-	Input.set_custom_mouse_cursor(null);
-	
-	_connected = false;
-	_our_id = null;
+	Input.set_custom_mouse_cursor(null)
 	
 	# Delete all the received entities.
 	for child in $Players.get_children():
-		$Players.remove_child(child);
+		child.queue_free()
+	
+	connected = false
 
 
 func _try_to_host(port):
-	reset();
+	reset()
 	
-	var peer = NetworkedMultiplayerENet.new();
+	var peer = NetworkedMultiplayerENet.new()
+	var result = peer.create_server(port, max_clients)
 	
-	if OK == peer.create_server(port, max_clients):
-		get_tree().network_peer = peer;
-		set_status(Status.CONNECTED);
-		
-		# Spawn in the host.
-		_our_id = get_tree().get_network_unique_id();
-		_on_peer_connected(_our_id);
+	if result == OK:
+		get_tree().network_peer = peer
+		_on_peer_connected(1)
 
 
 func _try_to_join(address, port):
-	reset();
+	reset()
 	
-	var peer = NetworkedMultiplayerENet.new();
+	var peer = NetworkedMultiplayerENet.new()
+	var result = peer.create_client(address, port)
 	
-	if OK == peer.create_client(address, port):
-		get_tree().network_peer = peer;
-		set_status(Status.CONNECTED);
-		
-		_our_id = get_tree().get_network_unique_id();
+	if result == OK:
+		get_tree().network_peer = peer
 
 
 func _on_peer_connected(new_id):
 	if not is_server():
-		return;
-	
+		return
 	
 	# Spawn everyone for the new player.
 	for player in $Players.get_children():
-		rpc_id(new_id, "spawn_player", int(player.name));
+		rpc_id(new_id, "spawn_player", {
+			"id": int(player.name),
+			"color": player.our_color
+		})
+	
+	var their_info = {
+		"id": new_id,
+		"color": Color(randf(), randf(), randf())
+	}
 	
 	# And spawn the new player for everyone.
-	rpc("spawn_player", new_id);
-	spawn_player(new_id);
+	spawn_player(their_info)
+	rpc("spawn_player", their_info)
 	
-	rpc_id(new_id, "finalize_connection", _sun.current_time);
+	if new_id == 1:
+		finalize_connection(_sun.current_time)
+	else:
+		rpc_id(new_id, "finalize_connection", _sun.current_time)
 
 
 func _on_peer_dead(dead_id):
-	if not is_server():
-		return;
+	if is_server():
+		rpc("delete_player", dead_id)
+
+
+# Mark the end of connection phase, and synchronize time.
+puppet func finalize_connection(server_time):
+	_sun.current_time = server_time
+	connected = true
+
+
+func get_player(their_id):
+	return $Players.get_node(str(their_id))
+
+
+# Info is a dictionary with two keys: "id", the player's id, and their "color".
+puppet func spawn_player(info):
+	var node = preload("res://entities/player.tscn").instance()
 	
-	# Delete their player for everyone, including the host.
-	rpc("delete_player", dead_id);
-	delete_player(dead_id);
-
-
-func find_player_node(player_id):
-	return $Players.get_node(str(player_id));
-
-
-# Finalize connection and synchronize time.
-remotesync func finalize_connection(server_time):
-	_sun.current_time = server_time;
-	_connected = true;
-
-
-func apply_player_info(player_node, player_info):
-	# Apply the transform.
-	player_node.transform.origin = player_info["origin"];
+	node.name = str(info.id)
+	node.set_network_master(info.id)
 	
-	# Color the player's model.
-	var model = player_node.get_node("Shape/Model");
-	model.material.albedo_color = player_info["color"];
+	node.our_color = info.color
 	
-	var gas_node = player_node.get_node_or_null("Gas");
-	
-	# Manage the gas node.
-	if player_info["show_gas"]:
-		if not gas_node:
-			gas_node = preload("res://entities/gas.tscn").instance();
-			player_node.add_child(gas_node);
-	elif gas_node:
-		player_node.remove_child(gas_node);
-	
-	var hook_node = player_node.get_node_or_null("GrapplingHook");
-	
-	# Manage the hook node.
-	if player_info["hook_end"]:
-		if not hook_node:
-			hook_node = preload("res://entities/grappling_hook.tscn").instance();
-			player_node.add_child(hook_node);
-		hook_node.end = player_info["hook_end"];
-	elif hook_node:
-		player_node.remove_child(hook_node);
+	$Players.add_child(node)
 
 
-# Sent by the client to the other peers.
-remotesync func receive_player_info(info):
-	var player_id = get_tree().get_rpc_sender_id();
-	var node = find_player_node(player_id);
-	apply_player_info(node, info);
-
-
-remote func spawn_player(id):
-	var node = preload("res://entities/player.tscn").instance();
-	node.name = str(id);
-	node.set_network_master(id);
-	$Players.add_child(node);
-
-
-remote func delete_player(id):
-	$Players.remove_child(find_player_node(id));
+puppetsync func delete_player(id):
+	get_player(id).queue_free()

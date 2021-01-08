@@ -1,32 +1,36 @@
 extends Spatial
 
 
-# Rope's end point, in absolute coordinates.
-var end;
+# Rope's start in global coordinates.
+var rope_start
 
-# Used for drawing the line.
-onready var material = SpatialMaterial.new();
+onready var _rope = $Rope
 
 
 func _ready():
-	material.albedo_color = Color(0.0, 0.0, 0.0);
+	_rope.material_override = SpatialMaterial.new()
 
 
 func _process(_delta):
-	var rope = $Rope;
-	var hook = $Rope/Hook;
+	var relative_end = rope_start - global_transform.origin
+	var relative_start = Vector3()
 	
-	var start = Vector3(0.0, 0.5, 0.0);
+	var parent_rotation = get_parent_spatial().rotation
+	_rope.rotation.y = -parent_rotation.y
 	
-	hook.global_transform.origin = end;
+	_rope.clear()
+	_rope.material_override.albedo_color = Color(0.0, 0.0, 0.0)
 	
-	var parent_rotation = get_parent_spatial().rotation;
-	rope.rotation.y = -parent_rotation.y;
+	_rope.begin(Mesh.PRIMITIVE_LINES)
+	_rope.add_vertex(relative_start)
+	_rope.add_vertex(relative_end)
+	_rope.end()
+
+# Return the parent's (and thus, the hook's) velocity.
+func get_velocity():
+	var parent = get_parent()
 	
-	rope.clear();
-	rope.material_override = material;
-	
-	rope.begin(Mesh.PRIMITIVE_LINES);
-	rope.add_vertex(start);
-	rope.add_vertex(end - global_transform.origin);
-	rope.end();
+	if "velocity" in parent:
+		return parent.velocity
+	else:
+		return Vector3() # assumes the parent is a static body
