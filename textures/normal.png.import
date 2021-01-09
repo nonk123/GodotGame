@@ -2,15 +2,15 @@
 
 importer="texture"
 type="StreamTexture"
-path="res://.import/normal.png-3f7a687ed87a9434225995ca120d6595.stex"
+path="res://.import/normal.png-a8561dc8b21d02c19a551178d91d29aa.stex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://scenes/terrain/normal.png"
-dest_files=[ "res://.import/normal.png-3f7a687ed87a9434225995ca120d6595.stex" ]
+source_file="res://textures/normal.png"
+dest_files=[ "res://.import/normal.png-a8561dc8b21d02c19a551178d91d29aa.stex" ]
 
 [params]
 
@@ -23,12 +23,12 @@ flags/repeat=0
 flags/filter=true
 flags/mipmaps=false
 flags/anisotropic=false
-flags/srgb=0
-process/fix_alpha_border=false
+flags/srgb=2
+process/fix_alpha_border=true
 process/premult_alpha=false
 process/HDR_as_SRGB=false
 process/invert_color=false
 stream=false
 size_limit=0
-detect_3d=false
+detect_3d=true
 svg/scale=1.0

@@ -2,7 +2,7 @@ extends Spatial
 
 
 # How many seconds does it take to go day -> night -> day.
-export(float) var cycle_length = 360.0
+export(float) var cycle_length = 600.0
 
 # The time assigned to this node when it is created. Defaults to midday.
 export(float) var starting_time = cycle_length / 4.0

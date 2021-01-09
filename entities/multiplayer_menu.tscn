@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=2]
+[gd_scene load_steps=3 format=2]
 
 [ext_resource path="res://scripts/multiplayer_menu.gd" type="Script" id=1]
+[ext_resource path="res://scripts/fullscreen_check.gd" type="Script" id=2]
 
 [node name="Multiplayer" type="Control"]
 script = ExtResource( 1 )
@@ -8,7 +9,7 @@ __meta__ = {
 "_edit_use_anchors_": false
 }
 
-[node name="HSplit" type="HBoxContainer" parent="."]
+[node name="Split" type="HBoxContainer" parent="."]
 margin_left = 10.0
 margin_top = 10.0
 margin_right = 180.0
@@ -18,75 +19,88 @@ __meta__ = {
 "_edit_use_anchors_": false
 }
 
-[node name="HostSplit" type="VBoxContainer" parent="HSplit"]
-margin_right = 80.0
+[node name="Host" type="VBoxContainer" parent="Split"]
+margin_right = 100.0
 margin_bottom = 116.0
-rect_min_size = Vector2( 80, 0 )
+rect_min_size = Vector2( 100, 0 )
 custom_constants/separation = 5
 
-[node name="PortLabel" type="Label" parent="HSplit/HostSplit"]
-margin_right = 80.0
+[node name="PortLabel" type="Label" parent="Split/Host"]
+margin_right = 100.0
 margin_bottom = 14.0
 text = "Port:"
 
-[node name="PortField" type="LineEdit" parent="HSplit/HostSplit"]
+[node name="PortField" type="LineEdit" parent="Split/Host"]
 margin_top = 19.0
-margin_right = 80.0
+margin_right = 100.0
 margin_bottom = 43.0
 __meta__ = {
 "_edit_use_anchors_": false
 }
 
-[node name="HostButton" type="Button" parent="HSplit/HostSplit"]
+[node name="HostButton" type="Button" parent="Split/Host"]
 margin_top = 48.0
-margin_right = 80.0
+margin_right = 100.0
 margin_bottom = 68.0
 text = "Host!"
 
-[node name="Center" type="CenterContainer" parent="HSplit/HostSplit"]
+[node name="Fullscreen" type="HBoxContainer" parent="Split/Host"]
 margin_top = 73.0
-margin_right = 80.0
-margin_bottom = 116.0
+margin_right = 100.0
+margin_bottom = 97.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="Status" type="Label" parent="HSplit/HostSplit/Center"]
-margin_left = 40.0
-margin_top = 14.0
-margin_right = 40.0
-margin_bottom = 28.0
+[node name="Check" type="CheckBox" parent="Split/Host/Fullscreen"]
+margin_right = 24.0
+margin_bottom = 24.0
+focus_mode = 0
+enabled_focus_mode = 0
+script = ExtResource( 2 )
 
-[node name="JoinSplit" type="VBoxContainer" parent="HSplit"]
-margin_left = 90.0
-margin_right = 170.0
+[node name="Label" type="Label" parent="Split/Host/Fullscreen"]
+margin_left = 28.0
+margin_top = 5.0
+margin_right = 94.0
+margin_bottom = 19.0
+text = "Fullscreen"
+
+[node name="Status" type="Label" parent="Split/Host"]
+margin_top = 102.0
+margin_right = 100.0
 margin_bottom = 116.0
-rect_min_size = Vector2( 80, 0 )
+
+[node name="Join" type="VBoxContainer" parent="Split"]
+margin_left = 110.0
+margin_right = 210.0
+margin_bottom = 116.0
+rect_min_size = Vector2( 100, 0 )
 custom_constants/separation = 5
 
-[node name="AddressLabel" type="Label" parent="HSplit/JoinSplit"]
-margin_right = 80.0
+[node name="AddressLabel" type="Label" parent="Split/Join"]
+margin_right = 100.0
 margin_bottom = 14.0
 text = "Address:"
 
-[node name="AddressField" type="LineEdit" parent="HSplit/JoinSplit"]
+[node name="AddressField" type="LineEdit" parent="Split/Join"]
 margin_top = 19.0
-margin_right = 80.0
+margin_right = 100.0
 margin_bottom = 43.0
 text = "127.0.0.1"
 
-[node name="PortLabel" type="Label" parent="HSplit/JoinSplit"]
+[node name="PortLabel" type="Label" parent="Split/Join"]
 margin_top = 48.0
-margin_right = 80.0
+margin_right = 100.0
 margin_bottom = 62.0
 text = "Port:"
 
-[node name="PortField" type="LineEdit" parent="HSplit/JoinSplit"]
+[node name="PortField" type="LineEdit" parent="Split/Join"]
 margin_top = 67.0
-margin_right = 80.0
+margin_right = 100.0
 margin_bottom = 91.0
 
-[node name="JoinButton" type="Button" parent="HSplit/JoinSplit"]
+[node name="JoinButton" type="Button" parent="Split/Join"]
 margin_top = 96.0
-margin_right = 80.0
+margin_right = 100.0
 margin_bottom = 116.0
 text = "Join!"

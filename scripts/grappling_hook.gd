@@ -26,6 +26,7 @@ func _process(_delta):
 	_rope.add_vertex(relative_end)
 	_rope.end()
 
+
 # Return the parent's (and thus, the hook's) velocity.
 func get_velocity():
 	var parent = get_parent()

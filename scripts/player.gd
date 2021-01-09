@@ -93,7 +93,7 @@ var cursor_image = preload("res://textures/cursor.png")
 var our_color
 
 # Previously calculated drag acceleration for use in HUD metrics.
-var _drag
+var _drag = Vector3()
 
 # Used in calculating the hook's end position with the entity's movement.
 var _last_hooked_entity_position
@@ -170,14 +170,13 @@ func _physics_process(delta):
 	gas_meter += gas_regen * delta
 	gas_meter = min(gas_meter, max_gas_capacity)
 	
-	rpc_unreliable("receive_physics", transform.origin)
+	rpc_unreliable("receive_physics", transform.origin, velocity)
 
 
 func _process(delta):
 	if hook_node:
 		hook_node.rope_start = global_transform.origin
 	
-	# The rest accepts input.
 	if not is_network_master():
 		return
 	
@@ -195,8 +194,9 @@ func _process(delta):
 
 
 # Update everyone's instance of this player.
-puppet func receive_physics(new_origin):
+puppet func receive_physics(new_origin, new_velocity):
 	transform.origin = new_origin
+	velocity = new_velocity
 
 
 func try_to_dash():
@@ -310,7 +310,8 @@ func update_hud():
 	
 	var speedometer_color = Color(0.0, 0.8, 0.0)
 	
-	var drag_factor = _drag.length() / (velocity.length() + _drag.length())
+	var velocity_without_drag = velocity.length() + _drag.length()
+	var drag_factor = _drag.length() / velocity_without_drag
 	
 	speedometer_color.r = min(drag_factor, 1.0)
 	
@@ -388,8 +389,6 @@ func run_grappling_hook_updates(delta):
 func get_hook_end():
 	if hook_node:
 		return hook_node.global_transform.origin
-	else:
-		return null
 
 
 func get_rope_vector():
@@ -412,6 +411,8 @@ puppetsync func attach_hook(collider_path, end_position):
 	var their_position = collider.global_transform.origin
 	hook_node.translate(end_position - their_position)
 	
+	hook_node.rope_start = global_transform.origin
+	
 	collider.add_child(hook_node)
 	
 	wound_rope_length = get_rope_vector().length()
@@ -420,6 +421,7 @@ puppetsync func attach_hook(collider_path, end_position):
 puppetsync func break_hook():
 	if hook_node:
 		hook_node.queue_free()
+		hook_node = null
 
 
 # Rope tension keeps the player in the air.

@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=2]
+
+[ext_resource path="res://scripts/generators/forest_generator.gd" type="Script" id=1]
+
+[node name="Trees" type="CSGCombiner"]
+use_collision = true
+script = ExtResource( 1 )

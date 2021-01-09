@@ -7,12 +7,17 @@ export var max_clients = 32
 # True if we're connected to network.
 var connected
 
-onready var _sun = $Terrain/Sun
+# The currently used RNG seed.
+var current_seed
+
+var _terrain_node
+
+var _forest_node
+
+onready var _sun = $Sun
 
 
 func _ready():
-	randomize()
-	
 	# Prevent warnings over discarded value.
 	var _tmp
 	
@@ -22,11 +27,10 @@ func _ready():
 	_tmp = get_tree().connect("network_peer_connected", self, "_on_peer_connected")
 	_tmp = get_tree().connect("network_peer_disconnected", self, "_on_peer_dead")
 	_tmp = get_tree().connect("server_disconnected", self, "reset")
-	
-	reset()
+
 
 func _process(_delta):
-	var status_label = $Multiplayer/HSplit/HostSplit/Center/Status
+	var status_label = $Multiplayer/Split/Host/Status
 	status_label.text = "Connected" if connected else "Disconnected"
 
 
@@ -44,10 +48,40 @@ func reset():
 	Input.set_custom_mouse_cursor(null)
 	
 	# Delete all the received entities.
-	for child in $Players.get_children():
-		child.queue_free()
+	for player in $Players.get_children():
+		$Players.remove_child(player)
+		player.call_deferred("free")
 	
 	connected = false
+	
+	generate_map()
+
+
+func set_seed_or_random(specific_seed=null):
+	if not specific_seed:
+		randomize()
+		current_seed = randi()
+	else:
+		current_seed = specific_seed
+	
+	seed(current_seed)
+
+
+func run_generator(node_property, resource):
+	var node = get(node_property)
+	
+	if node:
+		remove_child(node)
+		node.call_deferred("free")
+	
+	set(node_property, resource.instance())
+	add_child(get(node_property))
+
+
+remote func generate_map(specific_seed=null):
+	set_seed_or_random(specific_seed)
+	run_generator("_terrain_node", preload("res://entities/terrain.tscn"))
+	run_generator("_forest_node", preload("res://entities/forest.tscn"))
 
 
 func _try_to_host(port):
@@ -91,9 +125,12 @@ func _on_peer_connected(new_id):
 	spawn_player(their_info)
 	rpc("spawn_player", their_info)
 	
+	# Generate them some trees.
+	
 	if new_id == 1:
 		finalize_connection(_sun.current_time)
 	else:
+		rpc_id(new_id, "generate_trees", current_seed)
 		rpc_id(new_id, "finalize_connection", _sun.current_time)
 
 
@@ -125,4 +162,9 @@ puppet func spawn_player(info):
 
 
 puppetsync func delete_player(id):
-	get_player(id).queue_free()
+	var player_node = get_player(id)
+	player_node.queue_free()
+	
+	# Make sure the hook is deleted with the player.
+	if player_node.hook_node:
+		player_node.hook_node.queue_free()
