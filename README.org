@@ -6,3 +6,62 @@ Attack on Titan Tribute Game by fenglee.
 Refer to [[./addons/README.org]] for info on how to make this project work.
 
 Most of the assets were taken from [[http://opengameart.org/]].
+
+I sometimes upload the exported binary to [[https://drive.google.com/file/d/1bc1mv3ZW21RB_XBuSDb5RPig-ShbG7bq/view?usp=sharing][Google Drive]].
+
+* How do I play?
+
+It's easy! First, press the "Host!" button to enter a new world.
+
+The basic controls are WASD to move and Space to jump. You can turn and
+pan the camera while holding right-click. Though, the real fun comes
+from using the grappling hook.
+
+When the cursor turns white (as opposed to red), left-click to shoot a
+grappling hook at that position. Left-click again to detach it.
+
+"Yeah, but what now?" you might say. The grappling hook is a versatile
+tool which allows for nearly complete freedom of movement. Experiment!
+
+You can control the rope length with the scroll wheel. Scrolling up
+makes it shorter, and scrolling down makes it longer. Utilize this by
+increasing the rope's tension, resulting in more speed!
+
+If you want to do a bit of maneuvering, hold a movement key and press
+Shift. You will dash, using up some gas. Running out of gas makes you
+unable to dash, but it regenerates over time.
+
+Some tips on using the grappling hook:
+- You can grapple anything that is solid, even other players.
+- Spinning 'round the trees speeds you up if done right.
+- Never hesitate to dash if you think you're too slow.
+- Mastery comes with practice. The more you play, the better you get.
+
+By they way, if you ever get stuck, press R to go back to spawn.
+
+* I got all of that. What now?
+
+There are no combat mechanics as of yet. Most of the development time
+was spent on tweaking the hook physics.
+
+Here's a list of possibly entertaining activities to waste your time on:
+- Race with your friends in multiplayer.
+- Learn the art of Hook-Fu.
+- Achieve new speed records.
+- Dash outside the map.
+- Find bugs and break the game.
+
+* Notes on multiplayer
+
+As mention previously, multiplayer is a thing in this game. The netcode
+is based on Godot's high-level multiplayer, with [[http://enet.bespin.org/][ENet]] as the backend.
+
+If you want to host a game, press the "Host!" button in the top-left
+corner. Edit the port field above it if needed.
+
+If you want to connect, enter an address and a port, and click the
+"Connect!" button.
+
+There's not much to say about multiplayer. The players and their hooks
+are synchronized, and the generated worlds should, in theory, be
+identical on both sides.
