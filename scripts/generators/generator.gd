@@ -10,6 +10,7 @@ export(float) var world_height = 256.0
 
 
 # Take a point in the XZ plane and return the snapped Vector3.
+# Operates on global coordinates.
 func snap_to_the_ground(point_xz):
 	var from = Vector3(point_xz.x, world_height, point_xz.y)
 	var to = Vector3(point_xz.x, -1.0, point_xz.y)

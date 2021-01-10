@@ -1,4 +1,4 @@
-extends "res://scripts/generators/generator.gd"
+extends "generator.gd"
 
 
 # How much of the world is filled with trees.
@@ -10,7 +10,7 @@ export(float) var private_space = 32.0
 # Each tree is placed this deep into the ground.
 export(float) var sinking_in = 3.0
 
-# Trees generated so far. They are instantiated after the array is filled.
+# Trees generated so far.
 var _points = []
 
 
@@ -30,15 +30,7 @@ func _ready():
 		
 		if placement_allowed(point):
 			_points.append(point)
-	
-	for point in _points:
-		var position = snap_to_the_ground(point)
-		var node = preload("res://entities/big_tree.tscn").instance()
-		
-		node.translate(position + Vector3.DOWN * sinking_in)
-		node.rotate_y(2 * PI * randf()) # random rotation in radians
-		
-		add_child(node)
+			add_tree(point)
 
 
 func placement_allowed(point):
@@ -47,3 +39,13 @@ func placement_allowed(point):
 			return false
 	
 	return true
+
+
+func add_tree(point):
+	var node = preload("res://entities/big_tree.tscn").instance()
+	var position = snap_to_the_ground(point)
+	
+	node.translate(position + Vector3.DOWN * sinking_in)
+	node.rotate_y(2 * PI * randf()) # random rotation in radians
+	
+	add_child(node)
