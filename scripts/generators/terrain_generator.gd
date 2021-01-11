@@ -13,15 +13,13 @@ export(float) var steepness = 0.4
 # Scaling applied to the ground texture.
 export(float) var uv_scale = 10.0
 
-onready var world_node = get_node("/root/World/")
-
 
 func _ready():
 	var terrain_data = HTerrainData.new()
 	terrain_data.resize(int(world_size) + 1)
 	
 	var noisy = OpenSimplexNoise.new()
-	noisy.seed = world_node.current_seed
+	noisy.seed = world_seed
 	noisy.period = world_size / 2.0
 	
 	var heightmap = terrain_data.get_image(HTerrainData.CHANNEL_HEIGHT)
@@ -54,7 +52,7 @@ func _ready():
 
 # Prevents players from spawning underground.
 func _set_up_player_spawn():
-	var players = world_node.get_node("Players")
+	var players = get_node("/root/World/Players")
 	var their_xz = Vector2(players.translation.x, players.translation.z)
 	
 	var snapped = snap_to_the_ground(their_xz)

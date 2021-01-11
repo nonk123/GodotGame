@@ -12,4 +12,4 @@ transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 512, 0, 512 )
 
 [node name="Sun" parent="." instance=ExtResource( 9 )]
 
-[node name="Multiplayer" parent="." instance=ExtResource( 7 )]
+[node name="MultiplayerMenu" parent="." instance=ExtResource( 7 )]

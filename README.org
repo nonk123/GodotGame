@@ -56,6 +56,9 @@ Here's a list of possibly entertaining activities to waste your time on:
 As mention previously, multiplayer is a thing in this game. The netcode
 is based on Godot's high-level multiplayer, with [[http://enet.bespin.org/][ENet]] as the backend.
 
+Up to 32 players are supported, though untested. Change this number in
+[[./scripts/game.gd]].
+
 If you want to host a game, press the "Host!" button in the top-left
 corner. Edit the port field above it if needed.
 

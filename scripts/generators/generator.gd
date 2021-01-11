@@ -8,6 +8,13 @@ export(float) var world_size = 1024.0
 # World height in meters.
 export(float) var world_height = 256.0
 
+# Seed used in generating this world.
+var world_seed
+
+
+func _ready():
+	seed(world_seed)
+
 
 # Take a point in the XZ plane and return the snapped Vector3.
 # Operates on global coordinates.

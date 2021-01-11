@@ -1,4 +1,4 @@
-extends KinematicBody
+extends "entity.gd"
 
 # A character accelerates by this much when he walks. In m * s^(-2).
 export var walking_acceleration = 20.0
@@ -60,9 +60,6 @@ export var min_zoom = 1.0
 # The camera arm cannot get longer than this many meters.
 export var max_zoom = 10.0
 
-# Velocity vector used in physics calculations.
-var velocity = Vector3()
-
 # Mouse position for use in raycasting.
 var mouse_position = Vector2()
 
@@ -110,6 +107,9 @@ func _ready():
 	var my_material = SpatialMaterial.new()
 	my_material.albedo_color = albedo_color
 	$Shape/Model.material = my_material
+	
+# warning-ignore:return_value_discarded
+	connect("tree_exiting", self, "break_hook")
 
 
 # Only useful for mouse events.
@@ -134,11 +134,27 @@ func _input(event):
 					scroll_value -= scroll_sensitivity
 
 
-func _physics_process(delta):
-	# Each player runs their own physics routine, but not others'.
+func _process(delta):
+	if hook_node:
+		hook_node.rope_start = global_transform.origin
+	
 	if not is_network_master():
 		return
 	
+	var want_to_quit = Input.is_action_just_pressed("quit")
+	
+	if want_to_quit:
+		get_tree().quit(0)
+	
+	pan_the_camera(delta)
+	run_smart_cursor()
+	update_hud()
+	
+	# Scroll value applies to the current frame only.
+	scroll_value = 0.0
+
+
+func think(delta):
 	var want_to_reset = Input.is_action_just_pressed("reset_myself")
 	var want_to_jump = Input.is_action_just_pressed("jump")
 	var want_to_dash = Input.is_action_just_pressed("dash")
@@ -163,39 +179,9 @@ func _physics_process(delta):
 	_drag = velocity.normalized() * calculate_drag()
 	velocity -= _drag * delta
 	
-	velocity = move_and_slide(velocity, Vector3(0.0, 1.0, 0.0))
-	
 	# Don't forget about gas regeneration.
 	gas_meter += gas_regen * delta
 	gas_meter = min(gas_meter, max_gas_capacity)
-	
-	rpc_unreliable("receive_physics", global_transform.origin, velocity)
-
-
-func _process(delta):
-	if hook_node:
-		hook_node.rope_start = global_transform.origin
-	
-	if not is_network_master():
-		return
-	
-	var want_to_quit = Input.is_action_just_pressed("quit")
-	
-	if want_to_quit:
-		get_tree().quit(0)
-	
-	pan_the_camera(delta)
-	run_smart_cursor()
-	update_hud()
-	
-	# Scroll value applies to the current frame only.
-	scroll_value = 0.0
-
-
-# Update everyone's instance of this player.
-puppet func receive_physics(new_origin, new_velocity):
-	global_transform.origin = new_origin
-	velocity = new_velocity
 
 
 func try_to_dash():

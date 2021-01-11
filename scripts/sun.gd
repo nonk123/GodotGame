@@ -14,7 +14,7 @@ export(float, 0.0, 1.0) var minimum_light = 0.05
 export(float, 0.0, 1.0) var maximum_light = 0.95
 
 # Time since day or night begun. Reset every time day comes.
-onready var current_time = starting_time
+puppetsync var current_time = starting_time
 
 onready var _light_node = $Light
 
@@ -38,9 +38,8 @@ func _process(delta):
 	_light_node.rotation.x = sun_angle
 	_environment.background_sky.sun_latitude = rad2deg(sun_angle)
 	
-	current_time += delta
-	
-	# The leftover time (e.g., if the frame took an hour to render) is
-	# transferred onto the next day.
 	while current_time >= cycle_length:
 		current_time -= cycle_length
+	
+	if get_tree().network_peer and is_network_master():
+		rset("current_time", current_time + delta)
