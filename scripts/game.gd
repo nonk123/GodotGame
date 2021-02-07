@@ -2,49 +2,57 @@ extends Spatial
 
 
 # How many clients can connect at a time.
-export var max_clients = 32
-
-# True if we're connected to network.
-var connected
+const MAX_CLIENTS = 32
 
 # The seed that generated the world.
 var world_seed
 
-onready var _sun = $Sun
+onready var entities = $Entities
+
+onready var mp_menu = $MultiplayerMenu
 
 
 func _ready():
-# warning-ignore:return_value_discarded
-	$MultiplayerMenu.connect("tried_hosting", self, "_try_to_host")
-# warning-ignore:return_value_discarded
-	$MultiplayerMenu.connect("tried_joining", self, "_try_to_join")
-	
-# warning-ignore:return_value_discarded
-	get_tree().connect("network_peer_connected", self, "_on_peer_connected")
 	# warning-ignore:return_value_discarded
-	get_tree().connect("network_peer_disconnected", self, "_on_peer_disconnected")
-# warning-ignore:return_value_discarded
+	mp_menu.connect("tried_hosting", self, "_try_to_host")
+	mp_menu.connect("tried_joining", self, "_try_to_join")
+	
+	# warning-ignore:return_value_discarded
+	get_tree().connect("network_peer_connected", self, "_on_peer_connected")
+	get_tree().connect("connected_to_server", self, "_we_connected")
+	
+	# warning-ignore:return_value_discarded
 	get_tree().connect("server_disconnected", self, "reset")
 
 
 func _process(_delta):
 	var status_label = $MultiplayerMenu/Split/Host/Status
-	status_label.text = "Connected" if connected else "Disconnected"
+	var peer = get_tree().network_peer
+	
+	if peer == null:
+		status_label.text = "Disconnected"
+	else:
+		match peer.get_connection_status():
+			NetworkedMultiplayerPeer.CONNECTION_DISCONNECTED:
+				status_label.text = "Disconnected"
+			NetworkedMultiplayerPeer.CONNECTION_CONNECTING:
+				status_label.text = "Connecting"
+			NetworkedMultiplayerPeer.CONNECTION_CONNECTED:
+				status_label.text = "Connected"
 
 
 func _try_to_host(port):
 	reset()
 	
 	var peer = NetworkedMultiplayerENet.new()
-	var result = peer.create_server(port, max_clients)
+	var result = peer.create_server(port, MAX_CLIENTS)
 	
 	if result == OK:
 		get_tree().network_peer = peer
 		
-		randomize()
-		world_seed = randi()
+		_we_connected()
 		
-		# `seed()` will be called here.
+		world_seed = randi()
 		finish_connection(world_seed)
 
 
@@ -59,17 +67,20 @@ func _try_to_join(address, port):
 
 
 func _on_peer_connected(new_id):
-	var our_id = get_tree().get_network_unique_id()
-	
-	var our_color = find_player(our_id).albedo_color
-	rpc_id(new_id, "spawn_player", our_color, our_id)
-	
-	if is_network_master():
+	if new_id != 1 and is_network_master():
 		rpc_id(new_id, "finish_connection", world_seed)
 
 
-func _on_peer_disconnected(their_id):
-	find_player(their_id).seppuku()
+func _we_connected():
+	var our_id = get_tree().get_network_unique_id()
+	var scene_path = "res://entities/player.tscn"
+	
+	randomize()
+	
+	# Spawn our player.
+	spawn_entity(str(our_id), our_id, scene_path, {
+		"body_color": Color(randf(), randf(), randf()),
+	})
 
 
 # Reset the game's state.
@@ -82,15 +93,15 @@ func reset():
 	
 	var map = get_node_or_null("Map")
 	
+	# .queue_free() produces weird effects in world generation.
+	
 	if map:
 		remove_child(map)
 		map.free()
 	
-	for player in $Players.get_children():
-		player.get_parent().remove_child(player)
-		player.call_deferred("free")
-	
-	connected = false
+	for entity in entities.get_children():
+		entities.remove_child(entity)
+		entity.free()
 
 
 # Generate the map, and end the connection phase.
@@ -108,32 +119,21 @@ remote func finish_connection(their_world_seed: int):
 	new_map.add_child(forest)
 	
 	add_child(new_map)
-	
-	spawn_our_player()
-	
-	connected = true
 
 
-func find_player(their_id):
-	return $Players.get_node(str(their_id))
+remote func spawn_entity(its_name, its_master, scene_path, fields_dict):
+	var node = load(scene_path).instance()
+	
+	for field in fields_dict:
+		node.set(field, fields_dict[field])
+	
+	node.name = its_name
+	node.scene_path = scene_path
+	
+	node.set_network_master(its_master)
+	
+	entities.add_child(node)
 
 
-# The player's ID is passed explicitly to allow local calls.
-remote func spawn_player(their_color, their_id):
-	var node = preload("res://entities/player.tscn").instance()
-	
-	node.name = str(their_id)
-	node.albedo_color = their_color
-	node.set_network_master(their_id)
-	
-	$Players.add_child(node)
-
-
-# Spawn the local player with a random color.
-func spawn_our_player():
-	randomize()
-	
-	var random_color = Color(randf(), randf(), randf())
-	var our_id = get_tree().get_network_unique_id()
-	
-	spawn_player(random_color, our_id)
+func find_entity(name):
+	return entities.get_node_or_null(str(name))

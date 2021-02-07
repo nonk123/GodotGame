@@ -2,13 +2,13 @@ extends "generator.gd"
 
 
 # How much of the world is filled with trees.
-export(float) var density = 0.05
+const DENSITY = 0.1
 
 # Minimum spacing between each tree.
-export(float) var private_space = 32.0
+const PRIVATE_SPACE = 32.0
 
 # Each tree is placed this deep into the ground.
-export(float) var sinking_in = 3.0
+const SINKING_IN = 3.0
 
 # Trees generated so far.
 var _points = []
@@ -16,10 +16,10 @@ var _points = []
 
 func _ready():
 	# Create a margin around the world borders.
-	var min_coordinate = private_space
-	var max_coordinate = world_size - private_space
+	var min_coordinate = PRIVATE_SPACE
+	var max_coordinate = WORLD_SIZE - PRIVATE_SPACE
 	
-	var trees_count = world_size * density
+	var trees_count = WORLD_SIZE * DENSITY
 	
 	# Brute-force approach to non-overlapping circles.
 	while len(_points) < int(trees_count):
@@ -35,7 +35,7 @@ func _ready():
 
 func placement_allowed(point):
 	for other_point in _points:
-		if point.distance_to(other_point) <= private_space:
+		if point.distance_to(other_point) <= PRIVATE_SPACE:
 			return false
 	
 	return true
@@ -45,7 +45,7 @@ func add_tree(point):
 	var node = preload("res://entities/big_tree.tscn").instance()
 	var position = snap_to_the_ground(point)
 	
-	node.translate(position + Vector3.DOWN * sinking_in)
-	node.rotate_y(2 * PI * randf()) # random rotation in radians
+	node.translate(position + Vector3.DOWN * SINKING_IN)
+	node.rotate_y(TAU * randf()) # random rotation in radians
 	
 	add_child(node)

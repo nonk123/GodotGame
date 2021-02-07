@@ -2,44 +2,41 @@ extends Spatial
 
 
 # How many seconds does it take to go day -> night -> day.
-export(float) var cycle_length = 600.0
-
-# The time assigned to this node when it is created. Defaults to midday.
-export(float) var starting_time = cycle_length / 4.0
+const CYCLE_LENGTH = 600.0
 
 # The minimum energy of the ambient light.
-export(float, 0.0, 1.0) var minimum_light = 0.05
+const MINIMUM_LIGHT = 0.05
 
 # The maximum energy of the ambient light.
-export(float, 0.0, 1.0) var maximum_light = 0.95
+const MAXIMUM_LIGHT = 0.95
 
-# Time since day or night begun. Reset every time day comes.
-puppetsync var current_time = starting_time
+# Time since day or night begun. Reset every time day comes. Default: midday.
+puppetsync var current_time = CYCLE_LENGTH / 4.0
 
-onready var _light_node = $Light
+onready var light_node = $Light
 
-onready var _environment = $Environment.environment
+onready var environment = $Environment.environment
 
 
 func _ready():
-	_environment.background_sky.sun_longitude = 0.0
+	environment.background_sky.sun_longitude = 0.0
 
 
 func _process(delta):
-	var sun_angle = 2.0 * PI * current_time / cycle_length
+	var sun_angle = 2.0 * PI * current_time / CYCLE_LENGTH
 	
 	var energy = 0.5 * sin(sun_angle) + 0.5
-	var light = clamp(energy, minimum_light, maximum_light)
+	var light = clamp(energy, MINIMUM_LIGHT, MAXIMUM_LIGHT)
 	
-	_environment.ambient_light_energy = light
-	_light_node.light_energy = light
+	environment.ambient_light_energy = light
+	light_node.light_energy = light
 	
 	# Rotate the light and the visible sun around.
-	_light_node.rotation.x = sun_angle
-	_environment.background_sky.sun_latitude = rad2deg(sun_angle)
+	light_node.rotation.x = sun_angle
+	environment.background_sky.sun_latitude = rad2deg(sun_angle)
 	
-	while current_time >= cycle_length:
-		current_time -= cycle_length
+	while current_time >= CYCLE_LENGTH:
+		current_time -= CYCLE_LENGTH
 	
 	if get_tree().network_peer and is_network_master():
-		rset("current_time", current_time + delta)
+		rset_unreliable("current_time", current_time + delta)

@@ -7,7 +7,7 @@
 [node name="World" type="Spatial"]
 script = ExtResource( 8 )
 
-[node name="Players" type="Spatial" parent="."]
+[node name="Entities" type="Spatial" parent="."]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 512, 0, 512 )
 
 [node name="Sun" parent="." instance=ExtResource( 9 )]

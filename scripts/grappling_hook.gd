@@ -4,11 +4,11 @@ extends Spatial
 # Rope's start in global coordinates.
 var rope_start
 
-onready var _rope = $Rope
+onready var rope = $Rope
 
 
 func _ready():
-	_rope.material_override = SpatialMaterial.new()
+	rope.material_override = SpatialMaterial.new()
 
 
 func _process(_delta):
@@ -16,15 +16,15 @@ func _process(_delta):
 	var relative_start = Vector3()
 	
 	var parent_rotation = get_parent_spatial().rotation
-	_rope.rotation.y = -parent_rotation.y
+	rope.rotation.y = -parent_rotation.y
 	
-	_rope.clear()
-	_rope.material_override.albedo_color = Color(0.0, 0.0, 0.0)
+	rope.clear()
+	rope.material_override.albedo_color = Color(0.0, 0.0, 0.0)
 	
-	_rope.begin(Mesh.PRIMITIVE_LINES)
-	_rope.add_vertex(relative_start)
-	_rope.add_vertex(relative_end)
-	_rope.end()
+	rope.begin(Mesh.PRIMITIVE_LINES)
+	rope.add_vertex(relative_start)
+	rope.add_vertex(relative_end)
+	rope.end()
 
 
 # Return the parent's (and thus, the hook's) velocity.
