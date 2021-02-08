@@ -27,6 +27,7 @@ func _ready():
 
 func _process(_delta):
 	var status_label = $MultiplayerMenu/Split/Host/Status
+	
 	var peer = get_tree().network_peer
 	
 	if peer == null:
